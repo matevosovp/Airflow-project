@@ -160,3 +160,5 @@ cython_debug/
 #.idea/
 
 *.csv
+to_postgres.ipynb
+part1_airflow/notebooks/template_notebook.ipynb
