@@ -81,11 +81,57 @@
 - `part2_dvc/scripts/evaluate.py` — расчет метрик и сохранение `cv_results/metrics.json`  
 - `part2_dvc/scripts/upload_model.py` — загрузка модели в S3 и создание маркера `cv_results/upload_done.txt`
 
-### Запуск пайплайна
-DVC инициализирован в подкаталоге `part2_dvc`, поэтому запуск выполняется так:
+## Как запустить
+
+Заполните .env_template и переименуйте в .env
 
 ```bash
-cd part2_dvc
-dvc repro
+# экспортируйте перепенные из .env
+export $(grep -v '^#' .env | xargs)
+```
+Требование проекта: `docker-compose.yaml` находится в корне репозитория, а код Airflow лежит в `part1_airflow/`.  
+Папки `dags/` и `plugins/` должны монтироваться в контейнер Airflow.
+```bash
+# обновление локального индекса пакетов
+sudo apt-get update
+# установка расширения для виртуального пространства
+sudo apt-get install python3.10-venv
+# создание виртуального пространства
+python3.10 -m venv .venv_project_name
+
+source .venv_project_name/bin/activate
+
+pip install -r requirements.txt
+
+# Скачайте официальные образы сервисов Airflow
+curl -LfO https://airflow.apache.org/docs/apache-airflow/2.7.3/docker-compose.yaml
+```
+
+
+Запуск из корня репозитория:
+
+```bash
+# Первый запуск
+docker compose up airflow-init
+
+# Второй командой разработчики Airflow советуют очистить возможный кэш, который появился в результате первого шага. Если этого не сделать, то могут возникнуть непредвиденные ошибки.
+docker compose down --volumes --remove-orphans 
+
+# Запуск
+docker compose up --build
+```
+
+DVC:
+```bash
+dvc init --subdir
+dvc remote add -d storage s3://<ВАШ_BUCKET>/dvc-cache
+dvc remote modify storage endpointurl https://storage.yandexcloud.net
+
+
+
+
+
+
+
 
 
