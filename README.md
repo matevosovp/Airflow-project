@@ -83,14 +83,11 @@
 
 ## Как запустить
 
-Заполните .env_template и переименуйте в .env
 
-```bash
-# экспортируйте перепенные из .env
-export $(grep -v '^#' .env | xargs)
-```
+
 Требование проекта: `docker-compose.yaml` находится в корне репозитория, а код Airflow лежит в `part1_airflow/`.  
 Папки `dags/` и `plugins/` должны монтироваться в контейнер Airflow.
+
 ```bash
 # обновление локального индекса пакетов
 sudo apt-get update
@@ -103,15 +100,18 @@ source .venv_project_name/bin/activate
 
 pip install -r requirements.txt
 
-# Скачайте официальные образы сервисов Airflow
-curl -LfO https://airflow.apache.org/docs/apache-airflow/2.7.3/docker-compose.yaml
+
 ```
-
-
-Запуск из корня репозитория:
+Заполните .env_template и переименуйте в .env
 
 ```bash
-# Первый запуск
+# экспортируйте перепенные из .env
+export $(grep -v '^#' .env | xargs)
+
+# Скачайте официальные образы сервисов Airflow
+curl -LfO https://airflow.apache.org/docs/apache-airflow/2.7.3/docker-compose.yaml
+
+# Первый запуск (Запуск из корня репозитория)
 docker compose up airflow-init
 
 # Второй командой разработчики Airflow советуют очистить возможный кэш, который появился в результате первого шага. Если этого не сделать, то могут возникнуть непредвиденные ошибки.
@@ -121,7 +121,7 @@ docker compose down --volumes --remove-orphans
 docker compose up --build
 ```
 
-DVC:
+DVC: (запуск из папки part2_dvc)
 ```bash
 dvc init --subdir
 dvc remote add -d storage s3://<ВАШ_BUCKET>/dvc-cache
