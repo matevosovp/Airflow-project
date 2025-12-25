@@ -1,0 +1,94 @@
+schema: '2.0'
+stages:
+  extract:
+    cmd: python scripts/extract_from_db.py --table public.real_estate_dataset_clean
+      --out data/processed/dataset.csv
+    deps:
+    - path: scripts/extract_from_db.py
+      hash: md5
+      md5: 6f9f52f18d915197eb2fe841d85dcc1e
+      size: 1506
+    params:
+      params.yaml:
+        data.out: data/processed/dataset.csv
+        data.table: public.real_estate_dataset_clean
+    outs:
+    - path: data/processed/dataset.csv
+      hash: md5
+      md5: a88a6c83f8df21b97b6c867c84fcda40
+      size: 16409064
+  train:
+    cmd: "python scripts/train.py --data data/processed/dataset.csv --target price
+      --model_out models/model.pkl --test_size 0.2 --random_state 42 --n_estimators
+      400 --max_depth 8\n"
+    deps:
+    - path: data/processed/dataset.csv
+      hash: md5
+      md5: a88a6c83f8df21b97b6c867c84fcda40
+      size: 16409064
+    - path: scripts/train.py
+      hash: md5
+      md5: 4bdb35d66ab220fd37457186c4351e3b
+      size: 4156
+    params:
+      params.yaml:
+        model.max_depth: 8
+        model.n_estimators: 400
+        train.random_state: 42
+        train.target: price
+        train.test_size: 0.2
+    outs:
+    - path: models/model.pkl
+      hash: md5
+      md5: 46dd57c2ad5510e15269d703df21a252
+      size: 1687258
+  evaluate:
+    cmd: "python scripts/evaluate.py --data data/processed/dataset.csv --model models/model.pkl
+      --target price --metrics_out cv_results/metrics.json --test_size 0.2 --random_state
+      42\n"
+    deps:
+    - path: data/processed/dataset.csv
+      hash: md5
+      md5: a88a6c83f8df21b97b6c867c84fcda40
+      size: 16409064
+    - path: models/model.pkl
+      hash: md5
+      md5: 46dd57c2ad5510e15269d703df21a252
+      size: 1687258
+    - path: scripts/evaluate.py
+      hash: md5
+      md5: 9071f474980fffc3f746e88078e69f36
+      size: 1747
+    params:
+      params.yaml:
+        train.random_state: 42
+        train.target: price
+        train.test_size: 0.2
+    outs:
+    - path: cv_results/metrics.json
+      hash: md5
+      md5: d9d58bbc603489e23cff93ab55e12f01
+      size: 134
+  upload:
+    cmd: "python scripts/upload_model.py --model models/model.pkl --bucket s3-student-mle-20251010-5a382f9c3d
+      --key models/real_estate/model.pkl --endpoint_url https://storage.yandexcloud.net
+      --done cv_results/upload_done.txt\n"
+    deps:
+    - path: models/model.pkl
+      hash: md5
+      md5: 46dd57c2ad5510e15269d703df21a252
+      size: 1687258
+    - path: scripts/upload_model.py
+      hash: md5
+      md5: 8dc3913a78cb1c33582c47fc5c32b7fd
+      size: 945
+    params:
+      params.yaml:
+        s3.bucket: s3-student-mle-20251010-5a382f9c3d
+        s3.endpoint_url: https://storage.yandexcloud.net
+        s3.model_key: models/real_estate/model.pkl
+    outs:
+    - path: cv_results/upload_done.txt
+      hash: md5
+      md5: 2b93744926fc3926c2d8d8f89722c93b
+      size: 106

@@ -1,0 +1,5 @@
+[core]
+    remote = my_storage
+['remote "my_storage"']
+    url = s3://s3-student-mle-20251010-5a382f9c3d/dvc-cache
+    endpointurl = https://storage.yandexcloud.net

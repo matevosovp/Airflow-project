@@ -1,0 +1,77 @@
+vars:
+  - params.yaml
+
+stages:
+  extract:
+    cmd: python scripts/extract_from_db.py --table ${data.table} --out ${data.out}
+    deps:
+      - scripts/extract_from_db.py
+    params:
+      - params.yaml:
+          - data.table
+          - data.out
+    outs:
+      - data/processed/dataset.csv
+
+  train:
+    cmd: >
+      python scripts/train.py
+      --data ${data.out}
+      --target ${train.target}
+      --model_out models/model.pkl
+      --test_size ${train.test_size}
+      --random_state ${train.random_state}
+      --n_estimators ${model.n_estimators}
+      --max_depth ${model.max_depth}
+    deps:
+      - scripts/train.py
+      - data/processed/dataset.csv
+    params:
+      - params.yaml:
+          - train.target
+          - train.test_size
+          - train.random_state
+          - model.n_estimators
+          - model.max_depth
+    outs:
+      - models/model.pkl
+
+  evaluate:
+    cmd: >
+      python scripts/evaluate.py
+      --data ${data.out}
+      --model models/model.pkl
+      --target ${train.target}
+      --metrics_out cv_results/metrics.json
+      --test_size ${train.test_size}
+      --random_state ${train.random_state}
+    deps:
+      - scripts/evaluate.py
+      - data/processed/dataset.csv
+      - models/model.pkl
+    params:
+      - params.yaml:
+          - train.target
+          - train.test_size
+          - train.random_state
+    outs:
+      - cv_results/metrics.json
+
+  upload:
+    cmd: >
+      python scripts/upload_model.py
+      --model models/model.pkl
+      --bucket ${s3.bucket}
+      --key ${s3.model_key}
+      --endpoint_url ${s3.endpoint_url}
+      --done cv_results/upload_done.txt
+    deps:
+      - scripts/upload_model.py
+      - models/model.pkl
+    params:
+      - params.yaml:
+          - s3.bucket
+          - s3.model_key
+          - s3.endpoint_url
+    outs:
+      - cv_results/upload_done.txt

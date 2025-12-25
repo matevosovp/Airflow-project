@@ -1,0 +1,17 @@
+data:
+  table: public.real_estate_dataset_clean
+  out: data/processed/dataset.csv
+
+train:
+  target: price
+  test_size: 0.2
+  random_state: 42
+
+model:
+  n_estimators: 400
+  max_depth: 8
+
+s3:
+  bucket: s3-student-mle-20251010-5a382f9c3d
+  model_key: models/real_estate/model.pkl
+  endpoint_url: https://storage.yandexcloud.net
