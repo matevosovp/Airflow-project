@@ -38,7 +38,7 @@ def main() -> None:
     y_pred = pipeline.predict(X_val)
 
     metrics = {
-        "mse": float(mean_squared_error(y_val, y_pred)),
+        "rmse": float(mean_squared_error(y_val, y_pred, squared=False)),
         "mae": float(mean_absolute_error(y_val, y_pred)),
         "r2": float(r2_score(y_val, y_pred)),
         "rows_total": int(len(df)),
