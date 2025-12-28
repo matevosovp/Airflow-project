@@ -5,7 +5,7 @@ import joblib
 import pandas as pd
 
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
 
 
 def main() -> None:
@@ -38,13 +38,12 @@ def main() -> None:
     y_pred = pipeline.predict(X_val)
 
     metrics = {
-        "rmse": float(mean_squared_error(y_val, y_pred, squared=False)),
+        "rmse": float(root_mean_squared_error(y_val, y_pred)),
         "mae": float(mean_absolute_error(y_val, y_pred)),
         "r2": float(r2_score(y_val, y_pred)),
         "rows_total": int(len(df)),
         "rows_val": int(len(X_val)),
-    }
-
+    }   
     os.makedirs(os.path.dirname(args.metrics_out), exist_ok=True)
     with open(args.metrics_out, "w", encoding="utf-8") as f:
         json.dump(metrics, f, ensure_ascii=False, indent=2)

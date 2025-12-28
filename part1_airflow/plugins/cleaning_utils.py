@@ -6,9 +6,9 @@ def clean_dataset(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
     if "flat_id" in df.columns:
-        df = df.drop_duplicates(subset=["flat_id"])
+        df = df.drop_duplicates(subset=["flat_id"], keep="first")
     else:
-        df = df.drop_duplicates()
+        df = df.drop_duplicates(keep="first")
 
     for c in ["is_apartment", "studio", "has_elevator"]:
         if c in df.columns:

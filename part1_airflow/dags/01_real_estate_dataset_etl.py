@@ -3,7 +3,7 @@ from airflow.datasets import Dataset
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.operators.postgres import PostgresOperator
-
+from config import RAW_DATASET
 from telegram_notify import send_telegram_message, task_failure_callback
 from real_estate_sql import (
     CREATE_TABLE_SQL,
@@ -13,7 +13,7 @@ from real_estate_sql import (
     CLEANUP_SQL,
 )
 
-RAW_DATASET = Dataset("postgres://pg_conn/public.real_estate_dataset_raw")
+
 
 DEFAULT_ARGS = {
     "owner": "airflow",

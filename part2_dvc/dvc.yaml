@@ -1,6 +1,9 @@
 vars:
   - params.yaml
 
+metrics:
+  - cv_results/metrics.json
+
 stages:
   extract:
     cmd: python scripts/extract_from_db.py --table ${data.table} --out ${data.out}
@@ -23,6 +26,7 @@ stages:
       --random_state ${train.random_state}
       --n_estimators ${model.n_estimators}
       --max_depth ${model.max_depth}
+      --loss_function ${model.loss_function}
     deps:
       - scripts/train.py
       - data/processed/dataset.csv
@@ -33,6 +37,7 @@ stages:
           - train.random_state
           - model.n_estimators
           - model.max_depth
+          - model.loss_function
     outs:
       - models/model.pkl
 
@@ -54,7 +59,7 @@ stages:
           - train.target
           - train.test_size
           - train.random_state
-    outs:
+    metrics:
       - cv_results/metrics.json
 
   upload:
@@ -74,4 +79,5 @@ stages:
           - s3.model_key
           - s3.endpoint_url
     outs:
-      - cv_results/upload_done.txt
+      - cv_results/upload_done.txt:
+          cache: false

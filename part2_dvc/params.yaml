@@ -8,8 +8,16 @@ train:
   random_state: 42
 
 model:
-  n_estimators: 400
+  n_estimators: 500
   max_depth: 8
+  loss_function: RMSE
+
+metrics:
+  scoring:
+    - neg_root_mean_squared_error
+    - neg_mean_absolute_error
+    - neg_mean_absolute_percentage_error
+
 
 s3:
   bucket: s3-student-mle-20251010-5a382f9c3d

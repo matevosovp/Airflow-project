@@ -42,7 +42,7 @@ def main() -> None:
     parser.add_argument("--test_size", type=float, required=True)
     parser.add_argument("--random_state", type=int, required=True)
 
-    # оставляем старые имена параметров, чтобы не менять dvc.yaml/params.yaml
+    parser.add_argument("--loss_function", type=str, default="RMSE")
     parser.add_argument("--n_estimators", type=int, required=True)  # -> CatBoost iterations
     parser.add_argument("--max_depth", type=int, default=8)         # -> CatBoost depth
     parser.add_argument("--learning_rate", type=float, default=0.1)
@@ -72,7 +72,7 @@ def main() -> None:
         transformers=[
             ("binary", OneHotEncoder(drop="if_binary", handle_unknown="ignore"), binary_cols),
             ("cat", CatBoostEncoder(), cat_cols),
-            ("num", StandardScaler(), num_cols),
+            # ("num", StandardScaler(), num_cols),  # Подправил
         ],
         remainder="drop",
         verbose_feature_names_out=False,
@@ -82,7 +82,7 @@ def main() -> None:
         iterations=args.n_estimators,
         depth=args.max_depth,
         learning_rate=args.learning_rate,
-        loss_function="RMSE",
+        loss_function=args.loss_function,
         random_seed=args.random_state,
         verbose=200,
     )
