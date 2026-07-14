@@ -57,7 +57,9 @@ def clean_dataset(df: pd.DataFrame) -> pd.DataFrame:
 
     for column in BOOLEAN_COLUMNS:
         if column in result.columns:
-            result[column] = result[column].fillna(False).astype(bool)
+            result[column] = (
+                result[column].astype("boolean").fillna(False).astype(bool)
+            )
 
     result = result.loc[result["price"].notna() & (result["price"] > 0)]
     result = result.loc[result["rooms"].notna() & (result["rooms"] > 0)].copy()
