@@ -164,6 +164,5 @@ cython_debug/
 to_postgres.ipynb
 part1_airflow/notebooks/template_notebook.ipynb
 
-# Airflow shared runtime artifacts
-part1_airflow/data/
+# Airflow runtime artifacts
 part1_airflow/logs/
