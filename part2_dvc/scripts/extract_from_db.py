@@ -30,17 +30,24 @@ EXPORT_COLUMNS = (
 )
 
 
-def _get_env(primary: str, fallback: str | None = None) -> str | None:
-    return os.getenv(primary) or (os.getenv(fallback) if fallback else None)
+def _get_env(*names: str) -> str | None:
+    return next((value for name in names if (value := os.getenv(name))), None)
 
 
 def build_pg_url() -> URL:
     values = {
-        "host": _get_env("DB_DESTINATION_HOST", "PGHOST"),
-        "port": _get_env("DB_DESTINATION_PORT", "PGPORT") or "5432",
-        "database": _get_env("DB_DESTINATION_NAME", "PGDATABASE"),
-        "username": _get_env("DB_DESTINATION_USER", "PGUSER"),
-        "password": _get_env("DB_DESTINATION_PASSWORD", "PGPASSWORD"),
+        "host": _get_env("DB_DESTINATION_HOST", "DB_SOURCE_HOST", "PGHOST"),
+        "port": _get_env("DB_DESTINATION_PORT", "DB_SOURCE_PORT", "PGPORT")
+        or "5432",
+        "database": _get_env(
+            "DB_DESTINATION_NAME", "DB_SOURCE_NAME", "PGDATABASE"
+        ),
+        "username": _get_env(
+            "DB_DESTINATION_USER", "DB_SOURCE_USER", "PGUSER"
+        ),
+        "password": _get_env(
+            "DB_DESTINATION_PASSWORD", "DB_SOURCE_PASSWORD", "PGPASSWORD"
+        ),
     }
     missing = [name for name, value in values.items() if not value]
     if missing:
