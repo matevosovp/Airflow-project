@@ -1,7 +1,6 @@
 import argparse
 import os
 import joblib
-import numpy as np
 import pandas as pd
 
 from sklearn.model_selection import train_test_split
@@ -72,7 +71,7 @@ def main() -> None:
         transformers=[
             ("binary", OneHotEncoder(drop="if_binary", handle_unknown="ignore"), binary_cols),
             ("cat", CatBoostEncoder(), cat_cols),
-            # ("num", StandardScaler(), num_cols),  # Подправил
+            ("num", StandardScaler(), num_cols),
         ],
         remainder="drop",
         verbose_feature_names_out=False,
