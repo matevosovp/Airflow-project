@@ -1,6 +1,7 @@
 data:
   table: public.real_estate_dataset_clean
   out: data/processed/dataset.csv
+  chunk_size: 100000
 
 train:
   target: price
@@ -10,14 +11,8 @@ train:
 model:
   n_estimators: 500
   max_depth: 8
+  learning_rate: 0.1
   loss_function: RMSE
-
-metrics:
-  scoring:
-    - neg_root_mean_squared_error
-    - neg_mean_absolute_error
-    - neg_mean_absolute_percentage_error
-
 
 s3:
   bucket: replace-with-your-bucket
