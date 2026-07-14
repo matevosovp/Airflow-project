@@ -1,8 +1,5 @@
+FROM apache/airflow:2.7.3-python3.10
 
-# Dockerfile
+COPY --chown=airflow:root part1_airflow/requirements.txt /tmp/project-requirements.txt
 
-FROM apache/airflow:2.7.3-python3.10 
-# копируем файл в целевую директорию
-COPY requirements.txt ./tmp/requirements.txt
-RUN pip install -U pip
-RUN pip install -r ./tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/project-requirements.txt
