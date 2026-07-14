@@ -24,13 +24,28 @@ jobs:
           cache: pip
 
       - name: Install test dependencies
-        run: pip install numpy==1.26.2 pandas==2.1.3 pytest==8.3.4
+        run: >-
+          pip install
+          numpy==1.26.2
+          pandas==2.1.3
+          pytest==8.3.4
+          PyYAML==6.0.1
 
-      - name: Run unit tests
+      - name: Run unit and architecture tests
         run: pytest -q
 
       - name: Check Python syntax
-        run: python -m compileall -q part1_airflow/dags part1_airflow/plugins part2_dvc/scripts
+        run: >-
+          python -m compileall -q
+          part1_airflow/dags
+          part1_airflow/plugins
+          part2_dvc/scripts
+
+      - name: Validate YAML files
+        run: >-
+          python -c "from pathlib import Path; import yaml;
+          [yaml.safe_load(Path(path).read_text(encoding='utf-8'))
+          for path in ('part2_dvc/dvc.yaml', 'part2_dvc/params.yaml')]"
 
       - name: Validate Docker Compose
         run: |
