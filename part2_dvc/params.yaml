@@ -20,6 +20,6 @@ metrics:
 
 
 s3:
-  bucket: s3-student-mle-20251010-5a382f9c3d
+  bucket: replace-with-your-bucket
   model_key: models/real_estate/model.pkl
   endpoint_url: https://storage.yandexcloud.net
