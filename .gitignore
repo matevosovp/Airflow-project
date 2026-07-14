@@ -163,3 +163,7 @@ cython_debug/
 *.csv
 to_postgres.ipynb
 part1_airflow/notebooks/template_notebook.ipynb
+
+# Airflow shared runtime artifacts
+part1_airflow/data/
+part1_airflow/logs/
