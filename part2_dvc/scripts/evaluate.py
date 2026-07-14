@@ -1,54 +1,61 @@
 import argparse
 import json
-import os
+from pathlib import Path
+
 import joblib
-import pandas as pd
 
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
+from common import (
+    calculate_regression_metrics,
+    load_features_and_target,
+    split_dataset,
+)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Evaluate a trained model")
     parser.add_argument("--data", required=True)
     parser.add_argument("--model", required=True)
     parser.add_argument("--target", required=True)
     parser.add_argument("--metrics_out", required=True)
     parser.add_argument("--test_size", type=float, required=True)
     parser.add_argument("--random_state", type=int, required=True)
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    df = pd.read_csv(args.data)
 
-    y = df[args.target]
-    X = df.drop(columns=[args.target])
+def main() -> None:
+    args = parse_args()
+    model_path = Path(args.model)
+    if not model_path.is_file():
+        raise FileNotFoundError(f"Model not found: {model_path}")
 
-    for col in ["flat_id", "building_id"]:
-        if col in X.columns:
-            X = X.drop(columns=[col])
-
-    if "building_type_int" in X.columns:
-        X["building_type_int"] = X["building_type_int"].astype("Int64").astype("string")
-
-    X_tr, X_val, y_tr, y_val = train_test_split(
-        X, y, test_size=args.test_size, random_state=args.random_state
+    features, target, rows_total = load_features_and_target(
+        args.data,
+        args.target,
+    )
+    _, X_val, _, y_val = split_dataset(
+        features,
+        target,
+        args.test_size,
+        args.random_state,
     )
 
-    pipeline = joblib.load(args.model)
-    y_pred = pipeline.predict(X_val)
+    pipeline = joblib.load(model_path)
+    metrics = calculate_regression_metrics(
+        y_val,
+        pipeline.predict(X_val),
+        rows_total=rows_total,
+    )
 
-    metrics = {
-        "rmse": float(root_mean_squared_error(y_val, y_pred)),
-        "mae": float(mean_absolute_error(y_val, y_pred)),
-        "r2": float(r2_score(y_val, y_pred)),
-        "rows_total": int(len(df)),
-        "rows_val": int(len(X_val)),
-    }   
-    os.makedirs(os.path.dirname(args.metrics_out), exist_ok=True)
-    with open(args.metrics_out, "w", encoding="utf-8") as f:
-        json.dump(metrics, f, ensure_ascii=False, indent=2)
+    metrics_path = Path(args.metrics_out)
+    metrics_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = Path(f"{metrics_path}.tmp")
+    temporary_path.write_text(
+        json.dumps(metrics, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    temporary_path.replace(metrics_path)
 
-    print(f"Metrics saved: {args.metrics_out}")
+    print(f"Metrics saved: {metrics_path}")
     print(metrics)
 
 
