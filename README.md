@@ -1,133 +1,166 @@
-# Проект: пайплайны подготовки данных и обучения модели (Яндекс Недвижимость)
+# Airflow + DVC: подготовка данных и обучение модели недвижимости
 
-Репозиторий содержит решение проекта из трех этапов:
-1) сбор датасета из таблиц `buildings` и `flats` с помощью Airflow  
-2) очистка датасета и сохранение очищенной версии в БД с помощью Airflow  
-3) обучение базовой модели регрессии и выгрузка модели в S3 с помощью DVC
+[![Quality checks](https://github.com/matevosovp/Airflow-project/actions/workflows/quality.yml/badge.svg)](https://github.com/matevosovp/Airflow-project/actions/workflows/quality.yml)
 
+End-to-end учебный MLOps-проект для оценки стоимости недвижимости: данные собираются и очищаются в Airflow, а обучение, оценка и публикация модели оформлены как воспроизводимый DVC-пайплайн.
 
----
+## Коротко о проекте
 
-## Часть 1. Airflow (ETL и очистка)
+- два связанных Airflow DAG-а: ETL сырого датасета и очистка данных;
+- data-aware запуск второго DAG-а после обновления исходного набора;
+- общий volume для передачи промежуточных данных между Celery workers;
+- DVC-пайплайн из четырёх стадий: `extract → train → evaluate → upload`;
+- CatBoost-регрессия с версионированием параметров, модели и метрик;
+- S3-compatible хранилище для публикации model artifact;
+- unit-тесты очистки данных и автоматические проверки GitHub Actions.
 
-### Структура
-Все материалы Airflow находятся в папке:
+## Архитектура
 
-`part1_airflow/`
+```text
+PostgreSQL: buildings + flats
+            │
+            ▼
+Airflow DAG: real_estate_dataset_etl
+            │
+            ▼
+public.real_estate_dataset_raw
+            │  Dataset event
+            ▼
+Airflow DAG: real_estate_dataset_clean
+            │
+            ▼
+public.real_estate_dataset_clean
+            │
+            ▼
+DVC: extract → train → evaluate → upload
+            │         │          │
+            │         │          └── S3 model artifact
+            │         └── cv_results/metrics.json
+            └── models/model.pkl
+```
 
-- DAG-файлы: `part1_airflow/dags/`
-- Плагины/утилиты: `part1_airflow/plugins/`
-- Ноутбуки: `part1_airflow/notebooks/`
+## Airflow: подготовка данных
 
-### Этап 1. Сбор датасета
-**DAG файл:**  
-`part1_airflow/dags/real_estate_dataset_etl.py`
+### DAG 1 — сбор датасета
 
-**DAG id:**  
-`real_estate_dataset_etl`
+Файл: [`01_real_estate_dataset_etl.py`](part1_airflow/dags/01_real_estate_dataset_etl.py)  
+DAG ID: `real_estate_dataset_etl`
 
-**Назначение:**  
-Создает таблицу с сырым датасетом и загружает данные, объединяя `buildings` и `flats` в единый набор признаков.
+DAG объединяет таблицы `public.flats` и `public.buildings`, нормализует булевы признаки, загружает результат в `public.real_estate_dataset_raw` и публикует Airflow Dataset event.
 
-**Результат:**  
-Таблица в БД: `public.real_estate_dataset_raw`
+### DAG 2 — очистка
 
-### Этап 2. Очистка данных
-**DAG файл:**  
-`part1_airflow/dags/real_estate_dataset_clean.py`
+Файл: [`02_real_estate_dataset_clean.py`](part1_airflow/dags/02_real_estate_dataset_clean.py)  
+DAG ID: `real_estate_dataset_clean`
 
-**DAG id:**  
-`real_estate_dataset_clean`
+DAG запускается после обновления сырого датасета, применяет [`clean_dataset`](part1_airflow/plugins/cleaning_utils.py) и записывает результат в `public.real_estate_dataset_clean`.
 
-**Назначение:**  
-Загружает сырые данные, применяет функции очистки (пропуски, дубликаты, выбросы/аномалии) и сохраняет очищенный датасет.
+Правила очистки включают:
 
-**Функции очистки (Python):**  
-`part1_airflow/plugins/cleaning_utils.py`  
-(основная функция: `clean_dataset`)
+- удаление дубликатов по `flat_id`;
+- заполнение пропусков в булевых и числовых признаках;
+- удаление объектов с невозможными площадями, ценой или числом комнат;
+- ограничение выбросов по IQR.
 
-**Ноутбук с анализом и описанием правил очистки:**  
-`part1_airflow/notebooks/02_data_cleaning.ipynb`
+Промежуточные pickle-файлы хранятся в общем каталоге `/opt/airflow/data`, который смонтирован во все worker-контейнеры. Telegram-уведомления опциональны и не ломают DAG при отсутствии токена.
 
-**Результат:**  
-Таблица в БД: `public.real_estate_dataset_clean`
+## DVC: обучение и публикация модели
 
----
+Конфигурация находится в каталоге [`part2_dvc`](part2_dvc):
 
-## Часть 2. DVC (обучение модели и выгрузка в S3)
+| Стадия | Назначение | Основной артефакт |
+|---|---|---|
+| `extract` | выгрузка очищенного датасета из PostgreSQL | `data/processed/dataset.csv` |
+| `train` | preprocessing и обучение CatBoostRegressor | `models/model.pkl` |
+| `evaluate` | расчёт RMSE, MAE и R² | `cv_results/metrics.json` |
+| `upload` | загрузка модели в S3-compatible storage | `cv_results/upload_done.txt` |
 
-### Структура
-Все материалы DVC находятся в папке:
+Числовые, бинарные и категориальные признаки обрабатываются отдельными ветками `ColumnTransformer`; идентификаторы объектов исключаются из обучения.
 
-`part2_dvc/`
+Последний сохранённый запуск содержит:
 
-- Скрипты пайплайна: `part2_dvc/scripts/`
-- Данные: `part2_dvc/data/`
-- Модели: `part2_dvc/models/`
-- Метрики: `part2_dvc/cv_results/`
+| Метрика | Значение |
+|---|---:|
+| R² | 0.8480 |
+| RMSE | 2 422 847.95 |
+| MAE | 1 844 609.84 |
+| Объектов | 119 522 |
 
-### Конфигурация DVC
-- `part2_dvc/dvc.yaml` — описание стадий пайплайна
-- `part2_dvc/params.yaml` — параметры (таблица-источник, гиперпараметры модели, настройки S3)
-- `part2_dvc/dvc.lock` — lock-файл с зафиксированными зависимостями и артефактами
+Метрики относятся к зафиксированному DVC-run. После изменения preprocessing выполните `dvc repro`, чтобы пересчитать модель и связанные артефакты.
 
-### Скрипты DVC-пайплайна
-- `part2_dvc/scripts/extract_from_db.py` — выгрузка очищенного датасета из Postgres в CSV  
-- `part2_dvc/scripts/train.py` — обучение модели регрессии (CatBoostRegressor + preprocessing) и сохранение `models/model.pkl`  
-- `part2_dvc/scripts/evaluate.py` — расчет метрик и сохранение `cv_results/metrics.json`  
-- `part2_dvc/scripts/upload_model.py` — загрузка модели в S3 и создание маркера `cv_results/upload_done.txt`
+## Быстрый старт Airflow
 
-## Как запустить
-
-
-
-Требование проекта: `docker-compose.yaml` находится в корне репозитория, а код Airflow лежит в `part1_airflow/`.  
-Папки `dags/` и `plugins/` должны монтироваться в контейнер Airflow.
+Требуются Docker и Docker Compose.
 
 ```bash
-# обновление локального индекса пакетов
-sudo apt-get update
-# установка расширения для виртуального пространства
-sudo apt-get install python3.10-venv
-# создание виртуального пространства
-python3.10 -m venv .venv_project_name
+git clone https://github.com/matevosovp/Airflow-project.git
+cd Airflow-project
 
-source .venv_project_name/bin/activate
+cp .env.example .env
+# заполните подключения к PostgreSQL и при необходимости Telegram
 
+docker compose up airflow-init
+docker compose up --build -d
+```
+
+Интерфейс Airflow будет доступен на `http://localhost:8080`.
+
+Подключение `pg_conn` формируется из `DB_SOURCE_*` переменных в `.env`. Файл `.env` исключён из Git и не должен содержать реальные секреты в истории репозитория.
+
+## Запуск DVC-пайплайна
+
+```bash
+cd part2_dvc
+python3.10 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 
+set -a
+source ../.env
+set +a
 
-```
-Заполните .env_template и переименуйте в .env
-
-```bash
-# экспортируйте перепенные из .env
-export $(grep -v '^#' .env | xargs)
-
-# Скачайте официальные образы сервисов Airflow
-curl -LfO https://airflow.apache.org/docs/apache-airflow/2.7.3/docker-compose.yaml
-
-# Первый запуск (Запуск из корня репозитория)
-docker compose up airflow-init
-
-# Второй командой разработчики Airflow советуют очистить возможный кэш, который появился в результате первого шага. Если этого не сделать, то могут возникнуть непредвиденные ошибки.
-docker compose down --volumes --remove-orphans 
-
-# Запуск
-docker compose up --build
+# укажите свой bucket в params.yaml
+dvc repro
+dvc metrics show
 ```
 
-DVC: (запуск из папки part2_dvc)
+Для S3-compatible storage используются `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` и endpoint из [`params.yaml`](part2_dvc/params.yaml). Значение bucket в репозитории является безопасным placeholder.
+
+## Структура репозитория
+
+```text
+.
+├── part1_airflow/
+│   ├── dags/                 # ETL и cleaning DAG-и
+│   ├── plugins/              # SQL, очистка, config, уведомления
+│   ├── notebooks/            # анализ правил очистки
+│   └── requirements.txt
+├── part2_dvc/
+│   ├── scripts/              # extract, train, evaluate, upload
+│   ├── dvc.yaml
+│   ├── dvc.lock
+│   ├── params.yaml
+│   └── requirements.txt
+├── tests/                    # unit-тесты cleaning logic
+├── docker-compose.yaml
+├── Dockerfile
+└── .env.example
+```
+
+## Проверка качества
+
+Локально можно выполнить:
+
 ```bash
-dvc init --subdir
-dvc remote add -d storage s3://<ВАШ_BUCKET>/dvc-cache
-dvc remote modify storage endpointurl https://storage.yandexcloud.net
+pip install numpy==1.26.2 pandas==2.1.3 pytest==8.3.4
+pytest -q
+python -m compileall -q part1_airflow/dags part1_airflow/plugins part2_dvc/scripts
+docker compose config --quiet
+```
 
+## Ограничения
 
-
-
-
-
-
-
-
+- исходные таблицы PostgreSQL и S3-хранилище предоставляются отдельно;
+- Docker Compose предназначен для локальной демонстрации, а не production-развёртывания;
+- сохранённые метрики необходимо пересчитывать после изменений данных, параметров или preprocessing;
+- batch-очистка использует промежуточные файлы; для больших production-нагрузок разумнее перенести трансформации в SQL/Spark или объектное хранилище.
