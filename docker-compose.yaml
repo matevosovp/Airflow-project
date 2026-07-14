@@ -67,6 +67,7 @@ x-airflow-common:
     TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
     TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
     AIRFLOW_SHARED_DATA_DIR: /opt/airflow/data
+    AIRFLOW_CONN_PG_CONN: postgresql://${DB_SOURCE_USER}:${DB_SOURCE_PASSWORD}@${DB_SOURCE_HOST}:${DB_SOURCE_PORT:-5432}/${DB_SOURCE_NAME}
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
